@@ -17,12 +17,14 @@ mod task;
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_ms;
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
 
+use crate::config::MAX_SYSCALL_NUM;
 /// The task manager, where all the tasks are managed.
 ///
 /// Functions implemented on `TaskManager` deals with all task state transitions
@@ -54,6 +56,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            syscall_time:[0;MAX_SYSCALL_NUM],
+                    time:0,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -132,9 +136,69 @@ impl TaskManager {
             }
             // go back to user mode
         } else {
+            //loop {}
             panic!("All applications completed!");
         }
     }
+    fn syscall_happend(&self, syscall_id: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        match inner.tasks[current].task_status {
+            TaskStatus::UnInit => {
+                return -1;
+            }
+            TaskStatus::Ready => {
+                return -1;
+            }
+            TaskStatus::Running => {
+                inner.tasks[current].syscall_time[syscall_id] =
+                    inner.tasks[current].syscall_time[syscall_id] + 1;
+                inner.tasks[current].time = get_time_ms();
+                return 0;
+            }
+            TaskStatus::Exited => {
+                return -1;
+            }
+        }
+    }
+
+    fn current_task_status(&self) -> TaskStatus {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].task_status
+    }
+
+    fn current_task_time(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].time
+    }
+
+    fn current_task_syscall_times(&self) -> *mut [u32; MAX_SYSCALL_NUM] {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        &mut inner.tasks[current].syscall_time
+    }
+}
+
+/// get syscall time pointer from TASK_MANAGER
+pub fn current_task_syscall_times() -> *mut [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.current_task_syscall_times()
+}
+
+/// get current task status from TASK_MANAGER
+pub fn current_task_status() -> TaskStatus {
+    TASK_MANAGER.current_task_status()
+}
+
+/// get current task time from TASK_MANAGER
+pub fn current_task_time() -> usize {
+    TASK_MANAGER.current_task_time()
+}
+
+/// when current task syscall happend , sched func will call this func to log syscall and time
+pub fn current_task_syscall_happend(syscall_id: usize) -> isize {
+    TASK_MANAGER.syscall_happend(syscall_id)
 }
 
 /// Run the first task in task list.
