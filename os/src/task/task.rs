@@ -15,6 +15,8 @@ pub struct TaskControlBlock {
     pub syscall_time: [u32; MAX_SYSCALL_NUM],
     /// Total running time of task
     pub time: usize,
+    /// is first sched?
+    pub first_sched: bool,
 }
 
 /// The status of a task
