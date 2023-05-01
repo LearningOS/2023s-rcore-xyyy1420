@@ -148,8 +148,8 @@ impl TaskManager {
             }
             // go back to user mode
         } else {
-            loop {}
-            //panic!("All applications completed!");
+            //            loop {}
+            panic!("All applications completed!");
         }
     }
     fn syscall_happend(&self, syscall_id: usize) -> isize {
