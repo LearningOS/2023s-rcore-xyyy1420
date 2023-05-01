@@ -18,7 +18,7 @@ use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
 //use crate::timer::{get_time, get_time_ms};
-use crate::timer::get_time_ms;
+use crate::timer::get_time;
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
@@ -88,7 +88,7 @@ impl TaskManager {
         task0.task_status = TaskStatus::Running;
         if let true = task0.first_sched {
             task0.first_sched = false;
-            task0.time = get_time_ms();
+            task0.time = get_time();
         }
 
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
@@ -135,7 +135,7 @@ impl TaskManager {
             inner.tasks[next].task_status = TaskStatus::Running;
             if let true = inner.tasks[next].first_sched {
                 inner.tasks[next].first_sched = false;
-                inner.tasks[next].time = get_time_ms();
+                inner.tasks[next].time = get_time();
             }
 
             inner.current_task = next;
